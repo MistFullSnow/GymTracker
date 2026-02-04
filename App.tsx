@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { WORKOUT_PLAN, MUSCLE_GROUPS } from './constants';
 import { Tab, WorkoutLog, WeeklyAnalysisData } from './types';
-import { saveWorkoutLog, getWorkoutLogs, setScriptUrl, getScriptUrl } from './services/sheetService';
+import { saveWorkoutLog, getWorkoutLogs } from './services/sheetService';
 import { generateWeeklyAnalysis } from './services/geminiService';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 
@@ -10,7 +10,6 @@ const DumbbellIcon = ({ active }: { active: boolean }) => <svg xmlns="http://www
 const ClipboardIcon = ({ active }: { active: boolean }) => <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 transition-transform ${active ? 'scale-110' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>;
 const ChartIcon = ({ active }: { active: boolean }) => <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 transition-transform ${active ? 'scale-110' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>;
 const ClockIcon = ({ active }: { active: boolean }) => <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 transition-transform ${active ? 'scale-110' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
-const CogIcon = ({ active }: { active: boolean }) => <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 transition-transform ${active ? 'scale-110' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('plan');
@@ -39,7 +38,6 @@ export default function App() {
             {activeTab === 'log' && <LogView setLoading={setLoading} showToast={showToast} />}
             {activeTab === 'analysis' && <AnalysisView setLoading={setLoading} />}
             {activeTab === 'history' && <HistoryView />}
-            {activeTab === 'settings' && <SettingsView showToast={showToast} />}
         </div>
       </main>
 
@@ -64,7 +62,6 @@ export default function App() {
         <NavBtn icon={<DumbbellIcon active={activeTab === 'log'} />} label="Log" active={activeTab === 'log'} onClick={() => setActiveTab('log')} />
         <NavBtn icon={<ChartIcon active={activeTab === 'analysis'} />} label="Analysis" active={activeTab === 'analysis'} onClick={() => setActiveTab('analysis')} />
         <NavBtn icon={<ClockIcon active={activeTab === 'history'} />} label="History" active={activeTab === 'history'} onClick={() => setActiveTab('history')} />
-        <NavBtn icon={<CogIcon active={activeTab === 'settings'} />} label="Config" active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
       </nav>
     </div>
   );
@@ -490,45 +487,6 @@ const HistoryView = () => {
                 </div>
             ))}
         </div>
-    </div>
-  );
-};
-
-const SettingsView = ({ showToast }: { showToast: (s: string) => void }) => {
-  const [url, setUrl] = useState(getScriptUrl());
-
-  const save = () => {
-    setScriptUrl(url);
-    showToast("CONFIGURATION SAVED");
-  };
-
-  return (
-    <div className="space-y-6 pt-4">
-      <h2 className="text-2xl font-black text-white uppercase italic">System <span className="text-neutral-500">Config</span></h2>
-      <div className="bg-card p-6 rounded-3xl border border-white/10 shadow-2xl">
-        <label className="block text-xs font-bold text-neutral-500 uppercase tracking-widest mb-3">Google Apps Script URL</label>
-        
-        <input 
-            className="w-full bg-surface border border-white/10 rounded-xl p-4 text-white text-xs font-mono focus:border-secondary focus:ring-1 focus:ring-secondary outline-none mb-4"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://script.google.com/macros/s/..."
-        />
-        
-        <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 mb-6">
-            <p className="text-xs text-blue-200 leading-relaxed">
-                ℹ️ Ensure your Apps Script is deployed as a Web App with access set to "Anyone". This allows the app to write to your private Google Sheet.
-            </p>
-        </div>
-
-        <button onClick={save} className="w-full bg-secondary hover:bg-purple-600 text-white font-black py-4 rounded-xl shadow-lg shadow-purple-900/40 transition-all uppercase tracking-wide">
-            Save Connections
-        </button>
-      </div>
-      
-      <div className="text-center text-[10px] font-bold text-neutral-700 mt-12 uppercase tracking-widest">
-        GymTracker AI v1.0.1 • Powering Gains
-      </div>
     </div>
   );
 };

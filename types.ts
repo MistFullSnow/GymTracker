@@ -33,4 +33,4 @@ export interface WeeklyAnalysisData {
   summary: string;
 }
 
-export type Tab = 'plan' | 'log' | 'analysis' | 'history' | 'settings';
+export type Tab = 'plan' | 'log' | 'analysis' | 'history';

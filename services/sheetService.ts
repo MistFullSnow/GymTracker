@@ -1,15 +1,10 @@
 import { WorkoutLog, WeeklyAnalysisData } from '../types';
 
-// Users will input this in the UI if not set in ENV
-let SCRIPT_URL = process.env.VITE_GOOGLE_SCRIPT_URL || '';
-
-export const setScriptUrl = (url: string) => {
-  SCRIPT_URL = url;
-  localStorage.setItem('gym_script_url', url);
-};
+// Hardcoded Script URL as requested
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDelOKeZA1Kq5rk2v383pJwcsMs8oa6I9eo004YkixvF2MHgocs3ugN-Bcu53RqZH6TQ/exec';
 
 export const getScriptUrl = () => {
-  return SCRIPT_URL || localStorage.getItem('gym_script_url') || '';
+  return SCRIPT_URL;
 };
 
 export const saveWorkoutLog = async (log: WorkoutLog): Promise<boolean> => {
