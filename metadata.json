@@ -1,0 +1,5 @@
+{
+  "name": "GymTracker AI",
+  "description": "A mobile-first PWA for tracking workouts, viewing weekly plans, and generating AI-driven progress analysis using Google Gemini and Sheets.",
+  "requestFramePermissions": []
+}
