@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { WORKOUT_PLAN, MUSCLE_GROUPS } from './constants';
+import { WORKOUT_PLAN } from './constants';
 import { WorkoutLog } from './types';
 import { saveWorkoutLog } from './services/sheetService';
+import { fetchExerciseImages } from './services/gifService';
 
 // --- Icons ---
 const DownloadIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>;
@@ -36,8 +37,8 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen pb-10 bg-dark text-neutral-100 flex flex-col font-sans">
-      <header className="px-6 py-5 bg-card/80 backdrop-blur-md border-b border-white/5 sticky top-0 z-50 flex justify-between items-center shadow-lg shadow-black/40">
+    <div className="min-h-screen bg-dark text-neutral-100 flex flex-col font-sans">
+      <header className="px-6 py-5 bg-card/80 backdrop-blur-md border-b border-white/5 sticky top-0 z-40 flex justify-between items-center shadow-lg shadow-black/40">
         <div>
             <h1 className="text-2xl font-black italic tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-primary to-fuchsia-300">
             GYMTRACKER<span className="text-white not-italic font-light">.AI</span>
@@ -56,7 +57,7 @@ export default function App() {
         )}
       </header>
 
-      <main className="flex-grow p-4 overflow-y-auto">
+      <main className="flex-grow p-4 pb-12 overflow-y-auto">
         <div className="max-w-2xl mx-auto w-full">
             <PlanView setLoading={setLoading} showToast={showToast} />
         </div>
@@ -66,13 +67,13 @@ export default function App() {
       {loading && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center z-50">
           <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-primary"></div>
-          <div className="mt-4 font-bold text-primary tracking-widest animate-pulse">SAVING SET</div>
+          <div className="mt-4 font-bold text-primary tracking-widest animate-pulse">PROCESSING...</div>
         </div>
       )}
 
       {/* Toast */}
       {toast && (
-        <div className="fixed top-24 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-secondary to-teal-600 text-dark px-8 py-3 rounded-full shadow-2xl shadow-teal-900/50 z-50 font-bold tracking-wide animate-bounce border border-white/10">
+        <div className="fixed top-24 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-secondary to-teal-600 text-dark px-8 py-3 rounded-full shadow-2xl shadow-teal-900/50 z-50 font-bold tracking-wide animate-bounce border border-white/10 w-max max-w-[90vw] text-center">
           {toast}
         </div>
       )}
@@ -93,7 +94,6 @@ const PlanView = ({ setLoading, showToast }: { setLoading: (b: boolean) => void,
   const todayName = getTodayName();
   const todaysPlan = WORKOUT_PLAN.find(p => p.day === todayName);
   
-  // If it's a rest day (not in plan) or user wants to see all
   const displayedPlans = showAll ? WORKOUT_PLAN : (todaysPlan ? [todaysPlan] : []);
   const isRestDay = !todaysPlan && !showAll;
 
@@ -139,7 +139,6 @@ const PlanView = ({ setLoading, showToast }: { setLoading: (b: boolean) => void,
 
       {displayedPlans.map((plan) => (
         <div key={plan.day} className="group relative bg-card rounded-3xl overflow-hidden shadow-2xl border border-white/5 transition-all hover:border-primary/30">
-          {/* Header */}
           <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-primary to-purple-800"></div>
           
           <div className="p-6">
@@ -169,12 +168,12 @@ const PlanView = ({ setLoading, showToast }: { setLoading: (b: boolean) => void,
                     </ul>
                 </div>
                 
-                {plan.stretches.length > 0 && (
+                {plan.stretches && plan.stretches.length > 0 && (
                     <div>
                         <h4 className="text-xs font-bold text-neutral-500 uppercase tracking-widest mb-3">Recovery</h4>
                         <div className="bg-neutral-900/50 rounded-xl p-4 border border-white/5">
                             <ul className="text-xs text-neutral-400 space-y-2">
-                                {plan.stretches.map((s, i) => <li key={i} className="flex gap-2"><span>•</span> {s}</li>)}
+                                {plan.stretches.map((s: string, i: number) => <li key={i} className="flex gap-2"><span>•</span> {s}</li>)}
                             </ul>
                         </div>
                     </div>
@@ -199,13 +198,52 @@ const PlanView = ({ setLoading, showToast }: { setLoading: (b: boolean) => void,
   );
 };
 
+const ImageAnimator = ({ images, title }: { images: string[], title: string }) => {
+    const [index, setIndex] = useState(0);
+
+    useEffect(() => {
+        if (!images || images.length <= 1) return;
+        const interval = setInterval(() => {
+            setIndex((prev) => (prev + 1) % images.length);
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [images]);
+
+    if (!images || images.length === 0) {
+        return (
+             <div className="animate-pulse flex items-center justify-center text-xs font-bold uppercase tracking-widest text-neutral-500 h-full w-full py-10 bg-neutral-900/50">
+                Visual unavailable
+             </div>
+        );
+    }
+
+    return (
+         <img src={images[index]} alt={`${title} demonstration`} className="w-full h-full max-h-56 object-contain mix-blend-screen opacity-90 transition-opacity duration-300 bg-black/60 rounded-lg p-2" />
+    );
+};
+
 const ExerciseItem = ({ exercise, day, isToday, setLoading, showToast }: any) => {
     const [expanded, setExpanded] = useState(false);
     const [weight, setWeight] = useState('');
     const [reps, setReps] = useState('');
     const [setNumber, setSetNumber] = useState(1);
     const [notes, setNotes] = useState('');
+    const [images, setImages] = useState<string[] | null>(null);
+    const [loadingImages, setLoadingImages] = useState(false);
   
+    const handleExpandToggle = async () => {
+        if (!isToday) return;
+        const willExpand = !expanded;
+        setExpanded(willExpand);
+
+        if (willExpand && !images && !loadingImages) {
+            setLoadingImages(true);
+            const fetchedImages = await fetchExerciseImages(exercise.name);
+            setImages(fetchedImages || []); 
+            setLoadingImages(false);
+        }
+    };
+
     const handleLog = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!weight || !reps) return;
@@ -238,7 +276,7 @@ const ExerciseItem = ({ exercise, day, isToday, setLoading, showToast }: any) =>
       <li className={`bg-surface p-3 rounded-xl border transition-all ${expanded ? 'border-primary/50 shadow-md shadow-primary/10' : 'border-white/5'}`}>
          <div 
             className={`flex justify-between items-center ${isToday ? 'cursor-pointer' : ''}`} 
-            onClick={() => isToday && setExpanded(!expanded)}
+            onClick={handleExpandToggle}
          >
              <div>
                  <span className="block font-bold text-neutral-200 text-sm">{exercise.name}</span>
@@ -256,59 +294,77 @@ const ExerciseItem = ({ exercise, day, isToday, setLoading, showToast }: any) =>
          </div>
          
          {expanded && (
-             <form onSubmit={handleLog} className="pt-4 mt-3 border-t border-white/5 space-y-3 animate-in slide-in-from-top-2 fade-in duration-200">
-                  <div className="grid grid-cols-3 gap-2">
-                      <div>
-                         <label className="text-[10px] text-neutral-500 font-bold uppercase tracking-widest pl-1">Set</label>
-                         <input 
-                            type="number" 
-                            value={setNumber} 
-                            onChange={e=>setSetNumber(parseInt(e.target.value))} 
-                            className="w-full bg-card p-3 rounded-lg text-white font-mono font-bold border border-white/5 focus:border-primary outline-none" 
-                            min="1" max="10" 
-                            required
-                         />
-                      </div>
-                      <div>
-                         <label className="text-[10px] text-neutral-500 font-bold uppercase tracking-widest pl-1">Kg</label>
-                         <input 
-                            type="number" step="0.5" 
-                            value={weight} 
-                            onChange={e=>setWeight(e.target.value)} 
-                            className="w-full bg-card p-3 rounded-lg text-white font-mono font-bold border border-white/5 focus:border-primary outline-none" 
-                            required 
-                            placeholder="0"
-                         />
-                      </div>
-                      <div>
-                         <label className="text-[10px] text-neutral-500 font-bold uppercase tracking-widest pl-1">Reps</label>
-                         <input 
-                            type="number" 
-                            value={reps} 
-                            onChange={e=>setReps(e.target.value)} 
-                            className="w-full bg-card p-3 rounded-lg text-white font-mono font-bold border border-white/5 focus:border-primary outline-none" 
-                            required 
-                            placeholder="0"
-                         />
-                      </div>
-                  </div>
-                  <div className="flex gap-2">
-                      <input 
-                        type="text" 
-                        placeholder="Notes (optional)" 
-                        value={notes} 
-                        onChange={e=>setNotes(e.target.value)} 
-                        className="flex-1 bg-card p-3 rounded-lg text-white text-xs border border-white/5 focus:border-primary outline-none" 
-                      />
-                      <button 
-                        type="submit" 
-                        className="bg-primary/20 text-primary hover:bg-primary border border-primary/50 hover:text-white px-5 rounded-lg font-bold text-xs uppercase tracking-wide transition-all flex items-center gap-1 active:scale-95"
-                      >
-                          <CheckIcon /> Save
-                      </button>
-                  </div>
-             </form>
+             <div className="pt-4 mt-3 border-t border-white/5 animate-in slide-in-from-top-2 fade-in duration-200">
+                {/* Visual Display */}
+                <div className="w-full bg-card rounded-lg overflow-hidden mb-4 border border-white/5 flex justify-center items-center min-h-[140px]">
+                    {loadingImages ? (
+                         <div className="animate-pulse flex items-center justify-center text-xs font-bold uppercase tracking-widest text-neutral-500 py-10">
+                            Loading visual...
+                         </div>
+                    ) : images && images.length > 0 ? (
+                        <ImageAnimator images={images} title={exercise.name} />
+                    ) : (
+                         <div className="flex flex-col items-center justify-center text-xs font-bold uppercase tracking-widest text-neutral-500 py-10">
+                            <span className="text-xl mb-1">🔍</span>
+                            No Preview Available
+                         </div>
+                    )}
+                </div>
+
+                <form onSubmit={handleLog} className="space-y-3">
+                    <div className="grid grid-cols-3 gap-2">
+                        <div>
+                            <label className="text-[10px] text-neutral-500 font-bold uppercase tracking-widest pl-1">Set</label>
+                            <input 
+                                type="number" 
+                                value={setNumber} 
+                                onChange={e=>setSetNumber(parseInt(e.target.value))} 
+                                className="w-full bg-card p-3 rounded-lg text-white font-mono font-bold border border-white/5 focus:border-primary outline-none" 
+                                min="1" max="10" 
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[10px] text-neutral-500 font-bold uppercase tracking-widest pl-1">Kg</label>
+                            <input 
+                                type="number" step="0.5" 
+                                value={weight} 
+                                onChange={e=>setWeight(e.target.value)} 
+                                className="w-full bg-card p-3 rounded-lg text-white font-mono font-bold border border-white/5 focus:border-primary outline-none" 
+                                required 
+                                placeholder="0"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[10px] text-neutral-500 font-bold uppercase tracking-widest pl-1">Reps</label>
+                            <input 
+                                type="number" 
+                                value={reps} 
+                                onChange={e=>setReps(e.target.value)} 
+                                className="w-full bg-card p-3 rounded-lg text-white font-mono font-bold border border-white/5 focus:border-primary outline-none" 
+                                required 
+                                placeholder="0"
+                            />
+                        </div>
+                    </div>
+                    <div className="flex gap-2">
+                        <input 
+                            type="text" 
+                            placeholder="Notes (optional)" 
+                            value={notes} 
+                            onChange={e=>setNotes(e.target.value)} 
+                            className="flex-1 bg-card p-3 rounded-lg text-white text-xs border border-white/5 focus:border-primary outline-none" 
+                        />
+                        <button 
+                            type="submit" 
+                            className="bg-primary/20 text-primary hover:bg-primary border border-primary/50 hover:text-white px-5 rounded-lg font-bold text-xs uppercase tracking-wide transition-all flex items-center gap-1 active:scale-95"
+                        >
+                            <CheckIcon /> Save
+                        </button>
+                    </div>
+                </form>
+             </div>
          )}
       </li>
     );
-  }
+};
